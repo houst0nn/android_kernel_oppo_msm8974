@@ -191,6 +191,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define WCNSS_USR_CTRL_MSG_START  0x00000000
 #define WCNSS_USR_SERIAL_NUM      (WCNSS_USR_CTRL_MSG_START + 1)
 #define WCNSS_USR_HAS_CAL_DATA    (WCNSS_USR_CTRL_MSG_START + 2)
+#define WCNSS_USR_WLAN_MAC_ADDR   (WCNSS_USR_CTRL_MSG_START + 3)
 
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 
@@ -244,6 +245,13 @@ static struct wcnss_pmic_dump wcnss_pmic_reg_dump[] = {
 	{"S4", 0x1E8},
 	{"LVS7", 0x06C},
 	{"LVS1", 0x060},
+};
+
+static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
+				void *ss_handle);
+
+static struct notifier_block wnb = {
+	.notifier_call = wcnss_notif_cb,
 };
 
 #define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
@@ -2103,6 +2111,16 @@ void process_usr_ctrl_cmd(u8 *buf, size_t len)
 		has_calibrated_data = buf[2];
 		break;
 
+	case WCNSS_USR_WLAN_MAC_ADDR:
+		memcpy(&penv->wlan_nv_macAddr,  &buf[2],
+				sizeof(penv->wlan_nv_macAddr));
+
+		pr_debug("%s: MAC Addr:" MAC_ADDRESS_STR "\n", __func__,
+			penv->wlan_nv_macAddr[0], penv->wlan_nv_macAddr[1],
+			penv->wlan_nv_macAddr[2], penv->wlan_nv_macAddr[3],
+			penv->wlan_nv_macAddr[4], penv->wlan_nv_macAddr[5]);
+		break;
+
 	default:
 		pr_err("%s: Invalid command %d\n", __func__, cmd);
 		break;
@@ -2360,6 +2378,10 @@ wcnss_trigger_config(struct platform_device *pdev)
 	} while (pil_retry++ < WCNSS_MAX_PIL_RETRY && IS_ERR(penv->pil));
 
 	if (pil_retry >= WCNSS_MAX_PIL_RETRY) {
+		wcnss_reset_intr();
+		if (penv->wcnss_notif_hdle)
+			subsys_notif_unregister_notifier(penv->wcnss_notif_hdle,
+				&wnb);
 		penv->pil = NULL;
 		goto fail_pil;
 	}
@@ -2552,11 +2574,6 @@ static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 
 	return NOTIFY_DONE;
 }
-
-static struct notifier_block wnb = {
-	.notifier_call = wcnss_notif_cb,
-};
-
 
 static const struct file_operations wcnss_node_fops = {
 	.owner = THIS_MODULE,

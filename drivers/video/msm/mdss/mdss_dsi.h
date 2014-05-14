@@ -305,6 +305,12 @@ struct mdss_dsi_ctrl_pdata {
 /* OPPO 2014-02-11 yxq add end */
 };
 
+struct dsi_status_data {
+	struct notifier_block fb_notifier;
+	struct delayed_work check_status;
+	struct msm_fb_data_type *mfd;
+};
+
 int dsi_panel_device_register(struct device_node *pan_node,
 				struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 
@@ -333,7 +339,7 @@ void mdss_dsi_sw_reset(struct mdss_panel_data *pdata);
 irqreturn_t mdss_dsi_isr(int irq, void *ptr);
 void mdss_dsi_irq_handler_config(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 
-void mipi_set_tx_power_mode(int mode, struct mdss_panel_data *pdata);
+void mdss_dsi_set_tx_power_mode(int mode, struct mdss_panel_data *pdata);
 int mdss_dsi_clk_div_config(struct mdss_panel_info *panel_info,
 			    int frame_rate);
 int mdss_dsi_clk_init(struct platform_device *pdev,

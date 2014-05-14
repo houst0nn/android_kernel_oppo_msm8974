@@ -19,6 +19,7 @@
 #include <linux/msm_mdp.h>
 #include <linux/platform_device.h>
 #include <linux/notifier.h>
+#include <linux/kref.h>
 
 #include "mdss.h"
 #include "mdss_mdp_hwio.h"
@@ -75,6 +76,13 @@ static inline u32 mdss_mdp_reg_read(u32 addr)
 #define MDSS_MDP_REG_WRITE(addr, val)	MDSS_REG_WRITE((u32)(addr), (u32)(val))
 #define MDSS_MDP_REG_READ(addr)		MDSS_REG_READ((u32)(addr))
 #endif
+#define PERF_STATUS_DONE 0
+#define PERF_STATUS_BUSY 1
+
+enum mdss_mdp_perf_state_type {
+	PERF_SW_COMMIT_STATE = 0,
+	PERF_HW_MDP_STATE,
+};
 
 enum mdss_mdp_block_power_state {
 	MDP_BLOCK_POWER_OFF = 0,
@@ -180,7 +188,7 @@ struct mdss_mdp_ctl {
 	int force_screen_state;
 	struct mdss_mdp_perf_params cur_perf;
 	struct mdss_mdp_perf_params new_perf;
-	int perf_status;
+	u32 perf_transaction_status;
 
 	struct mdss_data_type *mdata;
 	struct msm_fb_data_type *mfd;
@@ -192,8 +200,12 @@ struct mdss_mdp_ctl {
 
 	struct mdss_panel_data *panel_data;
 	struct mdss_mdp_vsync_handler vsync_handler;
+	struct mdss_mdp_vsync_handler recover_underrun_handler;
+	struct work_struct recover_work;
+	struct work_struct remove_underrun_handler;
 
 	struct mdss_mdp_img_rect roi;
+	struct mdss_mdp_img_rect roi_bkup;
 	u8 roi_changed;
 
 	int (*start_fnc) (struct mdss_mdp_ctl *ctl);
@@ -364,7 +376,8 @@ struct mdss_mdp_pipe {
 	struct mdss_mdp_shared_reg_ctrl clk_ctrl;
 	struct mdss_mdp_shared_reg_ctrl clk_status;
 
-	atomic_t ref_cnt;
+	struct kref kref;
+
 	u32 play_cnt;
 	int pid;
 	bool is_handed_off;
@@ -564,8 +577,8 @@ int mdss_mdp_mixer_handoff(struct mdss_mdp_ctl *ctl, u32 num,
 
 int mdss_mdp_scan_pipes(void);
 
-void mdss_mdp_ctl_perf_taken(struct mdss_mdp_ctl *ctl);
-void mdss_mdp_ctl_perf_done(struct mdss_mdp_ctl *ctl);
+void mdss_mdp_ctl_perf_set_transaction_status(struct mdss_mdp_ctl *ctl,
+	enum mdss_mdp_perf_state_type component, bool new_status);
 void mdss_mdp_ctl_perf_release_bw(struct mdss_mdp_ctl *ctl);
 
 struct mdss_mdp_mixer *mdss_mdp_wb_mixer_alloc(int rotator);
@@ -681,6 +694,7 @@ int mdss_mdp_wb_ioctl_handler(struct msm_fb_data_type *mfd, u32 cmd, void *arg);
 
 int mdss_mdp_get_ctl_mixers(u32 fb_num, u32 *mixer_id);
 u32 mdss_mdp_fb_stride(u32 fb_index, u32 xres, int bpp);
+void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval);
 
 int mdss_panel_register_done(struct mdss_panel_data *pdata);
 int mdss_mdp_limited_lut_igc_config(struct mdss_mdp_ctl *ctl);
@@ -695,7 +709,7 @@ struct mdss_mdp_ctl *mdss_mdp_ctl_mixer_switch(struct mdss_mdp_ctl *ctl,
 void mdss_mdp_set_roi(struct mdss_mdp_ctl *ctl,
 					struct mdp_display_commit *data);
 
-int mdss_mdp_wb_set_format(struct msm_fb_data_type *mfd, int dst_format);
+int mdss_mdp_wb_set_format(struct msm_fb_data_type *mfd, u32 dst_format);
 int mdss_mdp_wb_get_format(struct msm_fb_data_type *mfd,
 					struct mdp_mixer_cfg *mixer_cfg);
 

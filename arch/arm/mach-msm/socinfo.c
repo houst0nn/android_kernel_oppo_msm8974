@@ -185,6 +185,7 @@ struct socinfo_v10 {
 };
 #endif
 /*OPPO yuyi 2013-10-18 add end for pcb_version in sys/devices/system/soc/soc0*/
+
 static union {
 	struct socinfo_v1 v1;
 	struct socinfo_v2 v2;

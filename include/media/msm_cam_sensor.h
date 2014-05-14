@@ -485,9 +485,9 @@ enum msm_actuator_cfg_type_t {
 	CFG_GET_ACTUATOR_INFO,
 	CFG_SET_ACTUATOR_INFO,
 	CFG_SET_DEFAULT_FOCUS,
-	CFG_SET_POSITION,
 	CFG_MOVE_FOCUS,
 	CFG_ACTUATOR_POWERDOWN,
+	CFG_SET_POSITION,
 };
 
 enum actuator_type {
@@ -664,10 +664,10 @@ struct sensor_init_cfg_data {
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 3, uint32_t)
 
 #define VIDIOC_MSM_CSIPHY_IO_CFG \
-	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct csid_cfg_data)
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct csiphy_cfg_data)
 
 #define VIDIOC_MSM_CSID_IO_CFG \
-	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct csiphy_cfg_data)
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct csid_cfg_data)
 
 #define VIDIOC_MSM_ACTUATOR_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct msm_actuator_cfg_data)
